@@ -18,7 +18,7 @@ object Assignment1 {
 
   class ConstantLM(vocabSize: Int) extends LanguageModel {
     val order = 1
-    def prob(word: String, history: NGram) = ???
+    def prob(word: String, history: NGram) = 1.0 / vocabSize
   }
 
   class NgramLM(val countsN: Counts,
