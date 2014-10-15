@@ -55,7 +55,7 @@ object Assignment1Util {
    * @return new map with count of ngram increased by count.
    */
   def addNgramCount(counts: Counts, ngram: NGram, count: Double = 1.0): Counts = {
-    counts updated (ngram, count + (counts getOrElse (ngram, 1.0)))
+    counts updated (ngram, count + (counts getOrElse (ngram, 0.0)))
   }
 
   /**
