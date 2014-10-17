@@ -8,6 +8,7 @@ import org.json4s.native.Serialization
 import org.json4s.native.Serialization.{read, write}
 import uk.ac.ucl.cs.mr.assignment1.Assignment1.LanguageModel
 import scala.io.{Source, Codec}
+import scala.collection.immutable.Range
 
 /**
  * @author Sebastian Riedel
@@ -35,7 +36,14 @@ object Assignment1Util {
    * @param n n-gram order
    * @return n-grams in sentence
    */
-  def ngramsInSentence(sentence: Sentence, n: Int): Seq[NGram] = ???
+  def ngramsInSentence(sentence: Sentence, n: Int): Seq[NGram] = {
+    if (n == 0 || n > sentence.size) {
+      // doh!
+      Seq[NGram]()
+    } else {
+      Range(0, sentence.tokens.length - n + 1) map (i => sentence.tokens.slice(i, i+n) map (_.word))
+    }
+  }
 
   /**
    * Get all descendant files in the directory specified by f.
@@ -64,7 +72,10 @@ object Assignment1Util {
    * @param countsFew second count map
    * @return a map that maps each key in the union of keys of counts1 and counts2 to the sum of their counts.
    */
-  def addNgramCounts(countsMany: Counts, countsFew: Counts): Counts = ???
+  def addNgramCounts(countsMany: Counts, countsFew: Counts): Counts = {
+    (countsMany.keySet.union(countsFew.keySet).foldLeft(Map[NGram, Double]())
+      ((m, k) => m updated (k, countsMany.getOrElse(k, 0.0) + countsFew.getOrElse(k, 0.0))))
+  }
 
   /**
    * Collect n-gram counts of a given order in the document
@@ -72,7 +83,14 @@ object Assignment1Util {
    * @param n the n-gram order.
    * @return a n-gram to count in document map
    */
-  def getNGramCounts(document: Document, n: Int): Counts = ???
+  def getNGramCounts(document: Document, n: Int): Counts = {
+    (document.sentences map (
+      s => ngramsInSentence(s, n).foldLeft(Map[NGram, Double]())((
+        (m, g) => addNgramCount(m, g))))).foldLeft(Map[NGram, Double]())((
+      (p, q) => addNgramCounts(p, q)
+      )
+    )
+  }
 
   /**
    * For a given n-gram count map get the counts for n-1 grams.
@@ -80,8 +98,6 @@ object Assignment1Util {
    * @return the n-1 gram counts.
    */
   def getNMinus1Counts(counts: Counts): Counts = ???
-
-
 
   // loads both the vocabulary and the history file, creates their
   // cartesian product, gets the probability for the language model
