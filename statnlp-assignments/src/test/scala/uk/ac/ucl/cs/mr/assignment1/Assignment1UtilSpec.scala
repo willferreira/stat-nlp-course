@@ -1,7 +1,7 @@
 package uk.ac.ucl.cs.mr.assignment1
 
 import org.scalatest.{Matchers, WordSpec}
-import uk.ac.ucl.cs.mr.assignment1.Assignment1Util.{Counts, NGram, ngramsInSentence, getNGramCounts}
+import uk.ac.ucl.cs.mr.assignment1.Assignment1Util._
 import ml.wolfe.nlp.{SentenceSplitter, TokenSplitter, Token, Sentence, Document}
 
 /**
@@ -35,58 +35,182 @@ class Assignment1UtilSpec extends WordSpec with Matchers {
 
   "An addNgramCounts" should {
     "Combine the counts in two ngram maps" in {
-      val countsMany: Counts = Map(Seq("a", "b") -> 1.0, Seq("c", "d") -> 2.0, Seq("e") -> 3.0)
-      val countsFew: Counts = Map(Seq("a", "b") -> 1.0, Seq("c", "d") -> 2.0, Seq("f") -> 10.0)
+      val countsMany: Counts = Map(
+        Seq("a", "b") -> 1.0,
+        Seq("c", "d") -> 2.0,
+        Seq("e") -> 3.0
+      )
+      val countsFew: Counts = Map(
+        Seq("a", "b") -> 1.0,
+        Seq("c", "d") -> 2.0,
+        Seq("f") -> 10.0
+      )
 
       (Assignment1Util.addNgramCounts(countsMany, countsFew) shouldBe
-        Map(Seq("a", "b") -> 2.0, Seq("c", "d") -> 4.0, Seq("e") -> 3.0, Seq("f") -> 10.0))
+        Map(
+          Seq("a", "b") -> 2.0,
+          Seq("c", "d") -> 4.0,
+          Seq("e") -> 3.0,
+          Seq("f") -> 10.0)
+        )
     }
   }
 
   def tokenize(text: String): Sentence = (SentenceSplitter andThen TokenSplitter)(text).sentences(0)
 
   "An ngramsInSentence" should {
-    "Find all the ngrams of a given size in a Sentence" in {
+    "Find all the uni-grams in a Sentence" in {
+      val sentence = tokenize("abc def ghi abc def")
+
+      val n = 1
+      ngramsInSentence(sentence, n) shouldBe (
+        Seq(
+          Seq("<s>"),
+          Seq("abc"),
+          Seq("def"),
+          Seq("ghi"),
+          Seq("abc"),
+          Seq("def"),
+          Seq("</s>")
+        ))
+    }
+
+  }
+
+  "An ngramsInSentence" should {
+    "Find all the bi-grams in a Sentence" in {
       val sentence = tokenize("abc def ghi abc def")
 
       val n = 2
       ngramsInSentence(sentence, n) shouldBe (
-        Seq(Seq("abc", "def"), Seq("def", "ghi"), Seq("ghi", "abc"), Seq("abc", "def")))
+        Seq(
+          Seq("<s>", "<s>"),
+          Seq("<s>", "abc"),
+          Seq("abc", "def"),
+          Seq("def", "ghi"),
+          Seq("ghi", "abc"),
+          Seq("abc", "def"),
+          Seq("def", "</s>"),
+          Seq("</s>", "</s>")
+        ))
     }
+
   }
 
   "An ngramsInSentence" should {
-    "Return an empty sequence when the number of tokens is < n" in {
+    "Find all the tri-grams in a Sentence" in {
       val sentence = tokenize("abc def ghi abc def")
 
-      val n = 6
-      ngramsInSentence(sentence, n) shouldBe Seq[NGram]()
+      val n = 3
+      ngramsInSentence(sentence, n) shouldBe (
+        Seq(
+          Seq("<s>", "<s>", "<s>"),
+          Seq("<s>", "<s>", "abc"),
+          Seq("<s>", "abc", "def"),
+          Seq("abc", "def", "ghi"),
+          Seq("def", "ghi", "abc"),
+          Seq("ghi", "abc", "def"),
+          Seq("abc", "def", "</s>"),
+          Seq("def", "</s>", "</s>"),
+          Seq("</s>", "</s>", "</s>")
+        ))
     }
   }
 
-  "An ngramsInSentence" should {
-    "Return an empty sequence when n=0" in {
-      val sentence = tokenize("abc def ghi abc def")
+  val sentence1 = tokenize("abc def ghi abc def")
+  val sentence2 = tokenize("abc def ghi abc def")
+  val sentence3 = tokenize("abc def ghi abc def")
+  val document = Document("Test doc", Seq(sentence1, sentence2, sentence3))
 
-      val n = 0
-      ngramsInSentence(sentence, n) shouldBe Seq[NGram]()
+  "A getNGramCounts" should {
+    "Return a count of the uni-grams in a Document" in {
+      val n = 1
+      getNGramCounts(document, n) shouldBe Map(
+        Seq("<s>") -> 3.0,
+        Seq("abc") -> 6.0,
+        Seq("def") -> 6.0,
+        Seq("ghi") -> 3.0,
+        Seq("</s>") -> 3.0
+      )
     }
   }
 
   "A getNGramCounts" should {
-    "Return a count of the ngrams in a Document" in {
-      val sentence1 = tokenize("abc def ghi abc def")
-      val sentence2 = tokenize("abc def ghi abc def")
-      val sentence3 = tokenize("abc def ghi abc def")
-      val document = Document("Test doc", Seq(sentence1, sentence2, sentence3))
-
-      var n = 2
+    "Return a count of the bi-grams in a Document" in {
+      val n = 2
       getNGramCounts(document, n) shouldBe Map(
-        Seq("abc", "def") -> 6.0, Seq("def", "ghi") -> 3.0, Seq("ghi", "abc") -> 3.0)
+        Seq("<s>", "<s>") -> 3.0,
+        Seq("<s>", "abc") -> 3.0,
+        Seq("abc", "def") -> 6.0,
+        Seq("def", "ghi") -> 3.0,
+        Seq("ghi", "abc") -> 3.0,
+        Seq("def", "</s>") -> 3.0,
+        Seq("</s>", "</s>") -> 3.0
+      )
+    }
+  }
 
-      n = 1
-      getNGramCounts(document, n) shouldBe Map(
-        Seq("abc") -> 6.0, Seq("def") -> 6.0, Seq("ghi") -> 3.0)
+  "A getNMinus1Counts" should {
+    "Return the bi-gram counts given the tri-gram counts" in {
+      val n = 3
+      val nGramCounts = getNGramCounts(document, n)
+
+      getNMinus1Counts(nGramCounts) shouldBe Map(
+        Seq("<s>", "<s>") -> 3.0,
+        Seq("<s>", "abc") -> 3.0,
+        Seq("abc", "def") -> 6.0,
+        Seq("def", "ghi") -> 3.0,
+        Seq("ghi", "abc") -> 3.0,
+        Seq("def", "</s>") -> 3.0,
+        Seq("</s>", "</s>") -> 3.0
+      )
+    }
+  }
+
+  "A getNMinus1Counts" should {
+    "Return the uni-gram counts given the bi-gram counts" in {
+      val n = 2
+      val nGramCounts = getNGramCounts(document, n)
+
+      getNMinus1Counts(nGramCounts) shouldBe Map(
+        Seq("<s>") -> 3.0,
+        Seq("abc") -> 6.0,
+        Seq("def") -> 6.0,
+        Seq("ghi") -> 3.0,
+        Seq("</s>") -> 3.0
+      )
+    }
+  }
+
+  "A getNMinus1Counts" should {
+    "Return the 0-gram counts given the uni-gram counts" in {
+      val n = 1
+      val nGramCounts = getNGramCounts(document, n)
+
+      getNMinus1Counts(nGramCounts) shouldBe Map(
+        Seq() -> 21.0
+      )
+    }
+  }
+
+  "Calling getNMinus1Counts(getNGramCounts(document, 3))" should {
+    "Return the same value as calling getNGramCounts(document, 2)" in {
+      val n = 3
+      getNMinus1Counts(getNGramCounts(document, n)) shouldBe getNGramCounts(document, n - 1)
+    }
+  }
+
+  "Calling getNMinus1Counts(getNGramCounts(document, 2))" should {
+    "Return the same value as calling getNGramCounts(document, 1)" in {
+      val n = 2
+      getNMinus1Counts(getNGramCounts(document, n)) shouldBe getNGramCounts(document, n - 1)
+    }
+  }
+
+  "Calling getNMinus1Counts(getNGramCounts(document, 1))" should {
+    "Return the same value as calling getNGramCounts(document, 0)" in {
+      val n = 1
+      getNMinus1Counts(getNGramCounts(document, n)) shouldBe getNGramCounts(document, n - 1)
     }
   }
 }

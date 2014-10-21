@@ -8,7 +8,7 @@ import org.json4s.native.Serialization
 import org.json4s.native.Serialization.{read, write}
 import uk.ac.ucl.cs.mr.assignment1.Assignment1.LanguageModel
 import scala.io.{Source, Codec}
-import scala.collection.immutable.Range
+import scala.collection.immutable.{HashMap, Range}
 
 /**
  * @author Sebastian Riedel
@@ -37,11 +37,20 @@ object Assignment1Util {
    * @return n-grams in sentence
    */
   def ngramsInSentence(sentence: Sentence, n: Int): Seq[NGram] = {
-    if (n == 0 || n > sentence.size) {
-      // doh!
-      Seq[NGram]()
-    } else {
-      Range(0, sentence.tokens.length - n + 1) map (i => sentence.tokens.slice(i, i+n) map (_.word))
+    if (n == 0)
+      // 0grams are effectively just a count of the
+      // number of words in the sentence, but also
+      // add 2 for start and end of sentence markers
+      Seq.fill(sentence.tokens.length + 2){Seq()}
+    else {
+      // prepend/append enough start/end of sentence markers
+      // before computing ngrams
+      val tokens = Seq.concat(Seq.fill(n) {
+        "<s>"
+      }, sentence.tokens map (_.word), Seq.fill(n) {
+        "</s>"
+      })
+      Range(0, tokens.length - n + 1) map (i => tokens.slice(i, i + n))
     }
   }
 
@@ -73,8 +82,7 @@ object Assignment1Util {
    * @return a map that maps each key in the union of keys of counts1 and counts2 to the sum of their counts.
    */
   def addNgramCounts(countsMany: Counts, countsFew: Counts): Counts = {
-    (countsMany.keySet.union(countsFew.keySet).foldLeft(Map[NGram, Double]())
-      ((m, k) => m updated (k, countsMany.getOrElse(k, 0.0) + countsFew.getOrElse(k, 0.0))))
+    countsMany ++ (countsFew map {case (k, v) => (k, countsMany.getOrElse(k, 0.0) + v)})
   }
 
   /**
@@ -84,20 +92,39 @@ object Assignment1Util {
    * @return a n-gram to count in document map
    */
   def getNGramCounts(document: Document, n: Int): Counts = {
-    (document.sentences map (
-      s => ngramsInSentence(s, n).foldLeft(Map[NGram, Double]())((
-        (m, g) => addNgramCount(m, g))))).foldLeft(Map[NGram, Double]())((
-      (p, q) => addNgramCounts(p, q)
-      )
-    )
-  }
+      (document.sentences map (
+        s => ngramsInSentence(s, n).foldLeft(Map[NGram, Double]())(
+          (m, g) => addNgramCount(m, g)))).foldLeft(Map[NGram, Double]())(
+            (p, q) => addNgramCounts(p, q))
+   }
 
   /**
    * For a given n-gram count map get the counts for n-1 grams.
    * @param counts the n-gram counts
    * @return the n-1 gram counts.
    */
-  def getNMinus1Counts(counts: Counts): Counts = ???
+  def getNMinus1Counts(counts: Counts): Counts = {
+    if (counts.isEmpty)
+      counts
+    else {
+      // determine the order using the first element in the map
+      val (ngram, _) = counts.head
+      val n = ngram.length
+
+      // truncate each ngram to first n-1 elements and grab associated counts
+      val nMinus1Counts = counts.foldLeft(Map[NGram, Double]()) {
+        case (m, (ngram, count)) => addNgramCount(m, ngram.take(n - 1), count)
+      }
+
+      // ensure number of sentence starts is equal to number of ends
+      val noSentences = nMinus1Counts(Seq.fill(n - 1) {
+        "</s>"
+      })
+      nMinus1Counts updated(Seq.fill(n - 1) {
+        "<s>"
+      }, noSentences)
+    }
+  }
 
   // loads both the vocabulary and the history file, creates their
   // cartesian product, gets the probability for the language model
