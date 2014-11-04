@@ -3,6 +3,7 @@ package uk.ac.ucl.cs.mr.assignment1
 import ml.wolfe.nlp.{Document, Sentence, TokenSplitter, SentenceSplitter}
 import org.scalatest.{Matchers, WordSpec}
 import uk.ac.ucl.cs.mr.assignment1.Assignment1._
+import uk.ac.ucl.cs.mr.assignment1.Assignment1Util._
 
 /**
  * Created by rockt on 08/10/2014.
@@ -30,6 +31,10 @@ class Assignment1Spec extends WordSpec with Matchers {
     tokenize("Sam I am"),
     tokenize("I do not eat green eggs and ham"))
   )
+
+  val vocab = Map("I" -> 3, "am" -> 2, "Sam" -> 2, "do" -> 1,
+                  "not" -> 1, "eat" -> 1, "green" -> 1, "eggs" -> 1,
+                  "and" -> 1, "ham" -> 1)
 
   "An unigramLM" should {
     "Return the probabilities of unigrams" in {
@@ -63,6 +68,27 @@ class Assignment1Spec extends WordSpec with Matchers {
       val doc = Document("Test doc", tokenize("0 1 2 3 4 5 6 7 8 9"))
 
       perplexity(lm, Seq(doc).iterator) shouldEqual vocabSize.toDouble +- 1e-2
+    }
+  }
+
+  "A higher order NGram model" should {
+    "have a perplexity less than or equal to a lower order NGram model when " +
+      "using same document for training and test" in {
+      val unigramLM = trainNgramLM(Seq(document), 1)
+      val bigramLM = trainNgramLM(Seq(document), 2)
+
+      perplexity(unigramLM, Seq(document).iterator) >= perplexity(bigramLM, Seq(document).iterator)
+    }
+  }
+
+  "A higher order NGram model with add one smoothing" should {
+    "have a perplexity less than or equal to a lower order NGram model with add one smoothing when " +
+      "using same document for training and test" in {
+      val vocabSize = 14
+      val unigramLMAddOne = new AddOneLM(trainNgramLM(Seq(document), 1), vocab)
+      val bigramLMAddOne = new AddOneLM(trainNgramLM(Seq(document), 2), vocab)
+
+      perplexity(unigramLMAddOne, Seq(document).iterator) >= perplexity(bigramLMAddOne, Seq(document).iterator)
     }
   }
 }

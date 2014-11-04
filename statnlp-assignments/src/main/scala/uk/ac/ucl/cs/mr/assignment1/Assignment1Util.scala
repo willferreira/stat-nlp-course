@@ -7,6 +7,7 @@ import org.json4s.NoTypeHints
 import org.json4s.native.Serialization
 import org.json4s.native.Serialization.{read, write}
 import uk.ac.ucl.cs.mr.assignment1.Assignment1.LanguageModel
+import scala.collection.mutable.Buffer
 import scala.io.{Source, Codec}
 import scala.collection.immutable.{HashMap, Range}
 
@@ -28,6 +29,78 @@ object Assignment1Util {
     val text = content.foldLeft("")(_ + " " + _)
     val pipeline = SentenceSplitter andThen TokenSplitter
     pipeline(text)
+  }
+
+  /**
+   * Replace first occurrence of each word in Seq[Document] with the token <UNK>
+   * @param docs a Seq[Document]
+   * @param vocab a Set[String] containing the vocab in docs
+   * @return a tuple (Map[String, Int], Seq[Document]) containing the new vocab abd documents
+   */
+  def addUnks(vocab: Map[String, Int], docs: Seq[Document]) : (Map[String, Int], Seq[Document]) = {
+    println("Performing <UNK> substitutions...")
+    var localVocab = scala.collection.mutable.Map[String, Int]() ++ vocab
+    var vocabWords = scala.collection.mutable.HashSet[String]() ++ vocab.keySet
+
+    def replaceFirstOccurrenceWithUnk(t: Token) : Token = {
+      if (vocabWords contains t.word) {
+        // once we replace the first occurrence of a word with <UNK> we
+        // don't do that again
+        vocabWords -= t.word
+        val count: Option[Int] = localVocab.get(t.word)
+        count match {
+          // decrement the count and remove if we're at zero since we used up the word
+          // to create an <UNK>
+          case Some(i: Int) => if (i == 1) localVocab -= t.word else localVocab(t.word) = i - 1
+          case None =>
+        }
+
+        // add <UNK> to the vocab, with its count
+        localVocab("<UNK>") = localVocab.getOrElse("<UNK>", 0) + 1
+        // replace the actual word with <UNK>
+        // NB. the offsets will be wrong, but we don't use them
+        Token("<UNK>", t.offsets)
+      } else
+      // we must have replaced the first occurrence of this word already
+        t
+    }
+
+    var newDocs: Buffer[Document] = Buffer()
+    for (doc <- docs) {
+      if (vocabWords.isEmpty)
+        newDocs += doc
+      else {
+        var newSentences: Buffer[Sentence] = Buffer()
+        for (sentence <- doc.sentences) {
+          if (vocabWords.isEmpty)
+          // no need to replace any more word first occurrences
+          // as they've all been done
+            newSentences += sentence
+          else
+            newSentences += Sentence(sentence.tokens map replaceFirstOccurrenceWithUnk)
+        }
+        newDocs += Document(doc.source, newSentences, filename = doc.filename, ir = doc.ir)
+      }
+    }
+
+    println("done with <UNK> substitutions.")
+    (localVocab.toMap, newDocs)
+  }
+
+  /**
+   * Estimates a log-linear model (used for the Good-Turing language model):
+   *  log Nc = a + b log c
+   * @param data the data for the model represented as a Map(c -> Nc)
+   * @return the (slope, intercept) of the estimated
+   */
+  def estimateLogLinearLSCoefficients(data: Map[Double, Double]): (Double, Double) = {
+    val logData = data.toSeq map {case (c, nc) => (Math.log(c), Math.log(nc))}
+
+    val numerator = (logData map ({case (logc, logNc) => logc * logNc})).sum
+    val denominator = (logData map ({case (logc, _) => Math.pow(logc, 2)})).sum
+    val slope = numerator / denominator
+    val intercept = (logData map ({case (_, logNc) => logNc})).sum / logData.size
+    (slope, intercept)
   }
 
   /**
@@ -60,7 +133,8 @@ object Assignment1Util {
    * @return all files in the directory, recursive.
    */
   def recursiveListFiles(f: File): Array[File] = {
-    val these = f.listFiles
+    // only interested in .txt files and directories
+    val these = f.listFiles.filter(f => (f.getName.endsWith(".txt") || f.isDirectory))
     these ++ these.filter(_.isDirectory).flatMap(recursiveListFiles)
   }
 
@@ -79,7 +153,7 @@ object Assignment1Util {
    * Take two count maps, and add their counts
    * @param countsMany first count map
    * @param countsFew second count map
-   * @return a map that maps each key in the union of keys of counts1 and counts2 to the sum of their counts.
+   * @return a map that maps each key in the union of keys of countsMany and countsFew to the sum of their counts.
    */
   def addNgramCounts(countsMany: Counts, countsFew: Counts): Counts = {
     countsMany ++ (countsFew map {case (k, v) => (k, countsMany.getOrElse(k, 0.0) + v)})

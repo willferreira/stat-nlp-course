@@ -213,4 +213,23 @@ class Assignment1UtilSpec extends WordSpec with Matchers {
       getNMinus1Counts(getNGramCounts(document, n)) shouldBe getNGramCounts(document, n - 1)
     }
   }
+
+  "Calling addUnks on a Sequence of Document" should {
+    "Replace the first occurrence of each token(word) with <UNK>" in {
+      val vocab = Map("abc" -> 6, "def" -> 6, "ghi" -> 3)
+      val (newVocab, d) = addUnks(vocab, Seq(document))
+
+      val sentence1 = tokenize("<UNK> <UNK> <UNK> abc def")
+      val sentence2 = tokenize("abc def ghi abc def")
+      val sentence3 = tokenize("abc def ghi abc def")
+
+      val expectedDocument = Seq(Document("Test doc", Seq(sentence1, sentence2, sentence3)))
+
+      val expectedVocab = Map("<UNK>" -> 3, "abc" -> 5, "def" ->5, "ghi" -> 2)
+      d shouldBe expectedDocument
+      newVocab shouldBe expectedVocab
+    }
+  }
+
+  "Calling estimateLogLinearLSCoefficients with som"
 }
