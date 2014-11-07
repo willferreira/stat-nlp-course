@@ -88,23 +88,7 @@ object Assignment1Util {
   }
 
   /**
-   * Estimates a log-linear model (used for the Good-Turing language model):
-   *  log Nc = a + b log c
-   * @param data the data for the model represented as a Map(c -> Nc)
-   * @return the (slope, intercept) of the estimated
-   */
-  def estimateLogLinearLSCoefficients(data: Map[Double, Double]): (Double, Double) = {
-    val logData = data.toSeq map {case (c, nc) => (Math.log(c), Math.log(nc))}
-
-    val numerator = (logData map ({case (logc, logNc) => logc * logNc})).sum
-    val denominator = (logData map ({case (logc, _) => Math.pow(logc, 2)})).sum
-    val slope = numerator / denominator
-    val intercept = (logData map ({case (_, logNc) => logNc})).sum / logData.size
-    (slope, intercept)
-  }
-
-  /**
-   * Generic method to get n-grams from a sentence
+   * Generic method to count n-grams in a sentence
    * @param sentence sentence to n-grams from
    * @param n n-gram order
    * @return n-grams in sentence

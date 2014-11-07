@@ -71,6 +71,26 @@ class Assignment1Spec extends WordSpec with Matchers {
     }
   }
 
+  class SkewedDigitLM() extends LanguageModel {
+    val order = 1
+
+    def prob(word: String, history: NGram) = {
+      word match {
+        case "0" => 10.0 / 19.0
+        case _ => 1.0 / 19
+      }
+    }
+  }
+
+  "Calling perplexity of on a skewed digit LM should" should {
+    "Return a prescribed value of approx 2.39" in {
+      val lm = new SkewedDigitLM()
+      val doc = Document("Test doc", tokenize("0 0 0 0 0 0 0 0 0 9"))
+
+      perplexity(lm, Seq(doc).iterator) shouldEqual 2.39 +- 1e-2
+    }
+  }
+
   "A higher order NGram model" should {
     "have a perplexity less than or equal to a lower order NGram model when " +
       "using same document for training and test" in {
@@ -85,8 +105,8 @@ class Assignment1Spec extends WordSpec with Matchers {
     "have a perplexity less than or equal to a lower order NGram model with add one smoothing when " +
       "using same document for training and test" in {
       val vocabSize = 14
-      val unigramLMAddOne = new AddOneLM(trainNgramLM(Seq(document), 1), vocab)
-      val bigramLMAddOne = new AddOneLM(trainNgramLM(Seq(document), 2), vocab)
+      val unigramLMAddOne = new AddkLM(trainNgramLM(Seq(document), 1), vocab)
+      val bigramLMAddOne = new AddkLM(trainNgramLM(Seq(document), 2), vocab)
 
       perplexity(unigramLMAddOne, Seq(document).iterator) >= perplexity(bigramLMAddOne, Seq(document).iterator)
     }
