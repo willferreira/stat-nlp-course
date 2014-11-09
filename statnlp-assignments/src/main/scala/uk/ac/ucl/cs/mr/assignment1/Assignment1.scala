@@ -16,7 +16,6 @@ object Assignment1 {
 
   trait LanguageModel {
     def order: Int
-
     def prob(word: String, history: NGram): Double
   }
 
@@ -120,7 +119,6 @@ object Assignment1 {
    */
   class ConstantLM(vocabSize: Int) extends LanguageModel {
     val order = 1
-
     def prob(word: String, history: NGram) = 1.0 / vocabSize
   }
 
@@ -269,8 +267,11 @@ object Assignment1 {
    * @param useUnk whether to use <UNK> for unknown words, defaults to false
    * @param maxOrder the max LM order size to run the model for, defaults to 3.
    */
-  def runAddkModel(k: Seq[Double] = Seq(1.0), useUnk: Boolean = false, maxOrder: Int = 3) = {
-    val (vocab_training, corpus_training, _, corpus_test) = loadData(useUnk=useUnk)
+  def runAddkModel(k: Seq[Double] = Seq(1.0), useUnk: Boolean = false, maxOrder: Int = 3,
+                   trainingStart: Int = 1995, trainingEnd: Int = 2005) = {
+    val (vocab_training, corpus_training, _, corpus_test) = loadData(useUnk=useUnk,trainingStart=trainingStart,
+    trainingEnd=trainingEnd)
+    println("Running add-k LM with k=%s and useUnk=%s".format(k.toString(), useUnk))
 
     val constLM = new ConstantLM(vocab_training.size)
     println("ConstantLM perplexity = %.0f" format(perplexity(constLM, corpus_test.iterator)))
@@ -292,17 +293,14 @@ object Assignment1 {
    * Runs the stupid back-off model and displays the results.
    * @param maxOrder the max LM order size to run the model for, defaults to 3.
    */
-  def runBackOff(maxOrder: Int = 3) = {
-    val (vocab_training, corpus_training, _, corpus_test) = loadData()
+  def runStupidBackOff(maxOrder: Int = 3, trainingStart: Int = 1990, trainingEnd: Int = 2005) = {
+    val (vocab_training, corpus_training, _, corpus_test) = loadData(trainingStart=trainingStart,
+    trainingEnd=trainingEnd)
 
     for (order <- 1 until maxOrder + 1) {
       val backoffLM = new StupidBackoffLM(trainNgramLM(corpus_training, order), vocab_training.size)
       println("Stupid back-off LM order %d has perplexity = %.0f" format (order, perplexity(backoffLM, corpus_test.iterator)))
     }
-  }
-
-  def runMaxProbableSentence(lm: LanguageModel, documents: Seq[Document], n: Int) = {
-
   }
 
   /**
@@ -336,6 +334,16 @@ object Assignment1 {
     (vocab_training, corpus_training, vocab_test, corpus_test)
   }
 
+  def getCountDistribution(counts: Counts): Unit = {
+    val groupedCounts = counts.groupBy({case (b, n) => n}) map ({case (n, m) => (n, m.size)})
+    val data = groupedCounts.toSeq.sortWith({case ((x1, _), (y1, _)) => x1 <= y1})
+    import java.io._
+    val writer = new PrintWriter(new File("gt_2.csv" ))
+
+    writer.write(data map {case (x,y) => "%.0f,%d\n".format(x,y)} mkString)
+    writer.close()
+  }
+
   /**
    * Main method. Can be used to run different scenarios on LMs by
    * supplying the correct command-line parameter.
@@ -346,27 +354,33 @@ object Assignment1 {
       val command = args(0)
       if (args.length == 2)
         fileRoot = args(1)
+      println("Running %s" format command)
       command match {
         case "RunAddk" => {
-          runAddkModel(k=Seq(2.0, 1.0, 0.1, 0.01, 0.001))
+          runAddkModel(k=Seq(1.0, 0.1, 0.01, 0.001))
         }
 
         case "RunAddkWithUnk" => {
-
+          runAddkModel(k=Seq(1.0), useUnk=true)
         }
 
-        case "RunBackOff" => {
-          runBackOff()
+        case "RunStupidBackOff" => {
+          runStupidBackOff()
         }
 
         case "CalcMaxSentence" => {
           val (vocab_training, corpus_training, vocab_test, corpus_test) = loadData(trainingStart=1979)
           val ngramLM = trainNgramLM(corpus_training, 2)
-          val addkLM = new AddkLM(ngramLM, vocab_training)
           val stupidLM = new StupidBackoffLM(ngramLM, vocab_training.size)
           val (length, (sentence, prob)) = calcMaxProbabilityOfSentenceLengthN(corpus_test, stupidLM, 10)
           println("Most likely sentence of length %d is %s with probability %E"
             .format(length, sentence.tokens map(_.word), prob))
+        }
+
+        case "GetCountDist" => {
+          val (vocab_training, corpus_training, vocab_test, corpus_test) = loadData(trainingStart=1979)
+          val ngramLM = trainNgramLM(corpus_training, 2)
+          getCountDistribution(ngramLM.countsN)
         }
 
         case _ => println("Unknown case")

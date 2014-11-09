@@ -65,7 +65,7 @@ class Assignment1Spec extends WordSpec with Matchers {
     "Return the size of the vocabulary" in {
       val vocabSize = 10
       val lm = new ConstantLM(vocabSize)
-      val doc = Document("Test doc", tokenize("0 1 2 3 4 5 6 7 8 9"))
+      val doc = Document("Test doc", tokenize("0 0 0 0 0 0 0 0 0 9"))
 
       perplexity(lm, Seq(doc).iterator) shouldEqual vocabSize.toDouble +- 1e-2
     }

@@ -35,7 +35,7 @@ object Assignment1Util {
    * Replace first occurrence of each word in Seq[Document] with the token <UNK>
    * @param docs a Seq[Document]
    * @param vocab a Set[String] containing the vocab in docs
-   * @return a tuple (Map[String, Int], Seq[Document]) containing the new vocab abd documents
+   * @return a tuple (Map[String, Int], Seq[Document]) containing the new vocab and documents
    */
   def addUnks(vocab: Map[String, Int], docs: Seq[Document]) : (Map[String, Int], Seq[Document]) = {
     println("Performing <UNK> substitutions...")
